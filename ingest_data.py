@@ -52,7 +52,7 @@ def upsert(df, table, conflict_cols, engine):
     if df.empty:
         log.info(f"[{table}] 0 new rows — already up to date")
         return 0
-    df.to_sql(name=table,con=engine,if_exists="append",index=False,method="multi")
+    df.to_sql(name=table,con=engine,if_exists="append",index=False,chunksize=500)
 
     log.info(f"[{table}] {len(df):,} rows inserted")
     return len(df)
@@ -137,6 +137,7 @@ def clean_products(df, valid_categories):
     df = df.dropna(subset=["product_id"])
     df["product_category_name"]=df["product_category_name"].astype(str).str.strip()
     df.loc[~df["product_category_name"].isin(valid_categories), "product_category_name"]=pd.NA
+    df = df[df["product_weight_g"].isna() | (df["product_weight_g"] > 0)]  
     df = df.drop_duplicates(subset=["product_id"], keep="first")
     return df[[
         "product_id",
@@ -225,6 +226,7 @@ def clean_reviews(df, valid_orders):
     df = df.dropna(subset=["review_id", "order_id", "review_score"])
     df = df[df["order_id"].isin(valid_orders)]
     df = df[df["review_score"].between(1, 5)]
+    df = df.drop_duplicates(subset=["review_id"], keep="first")
     df = df.drop_duplicates(subset=["order_id"], keep="first")
     return df
 

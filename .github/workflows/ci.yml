@@ -1,0 +1,60 @@
+name: OlistIQ CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Test database connection
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python3 -c "
+          import os
+          from sqlalchemy import create_engine, text
+          from sqlalchemy.pool import NullPool
+          engine = create_engine(os.environ['DATABASE_URL'], poolclass=NullPool)
+          with engine.connect() as conn:
+              count = conn.execute(text(\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'\")).scalar()
+              print(f'Tables found: {count}')
+              assert count == 9, f'Expected 9 tables, got {count}'
+          print('Connection test passed!')
+          "
+
+      - name: Validate schema.sql
+        run: |
+          python3 -c "
+          with open('schema.sql') as f:
+              content = f.read()
+          assert 'CREATE TABLE' in content
+          assert 'PRIMARY KEY' in content
+          assert 'FOREIGN KEY' in content
+          assert 'NOT NULL' in content
+          assert 'TIMESTAMPTZ' in content
+          assert 'NUMERIC' in content
+          print('schema.sql validation passed!')
+          "
+
+      - name: Validate ingest_data.py syntax
+        run: |
+          python3 -m py_compile ingest_data.py
+          echo "ingest_data.py syntax OK"
