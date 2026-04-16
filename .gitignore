@@ -190,4 +190,9 @@ datasets/
 mlruns/
 
 # Models (too large for git, use DVC or similar)
-# models/*.pkl
+# models/*.pkldbt/olistiq/target/
+dbt/olistiq/logs/
+dbt/logs/
+dbt/olistiq/target/
+dbt/olistiq/logs/
+dbt/logs/

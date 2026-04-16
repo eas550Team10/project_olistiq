@@ -1,0 +1,16 @@
+version: 2
+
+sources:
+  - name: olistiq
+    database: neondb
+    schema: public
+    tables:
+      - name: orders
+      - name: customers
+      - name: sellers
+      - name: products
+      - name: order_items
+      - name: payments
+      - name: order_reviews
+      - name: geolocation
+      - name: product_category_name_translation
