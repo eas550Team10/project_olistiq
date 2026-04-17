@@ -68,17 +68,23 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           mkdir -p ~/.dbt
+
+          DB_USER=$(echo $DATABASE_URL | sed -E 's|postgresql://([^:]+):.*|\1|')
+          DB_PASS=$(echo $DATABASE_URL | sed -E 's|.*:([^@]+)@.*|\1|')
+          DB_HOST=$(echo $DATABASE_URL | sed -E 's|.*@([^:/]+).*|\1|')
+          DB_NAME=$(echo $DATABASE_URL | sed -E 's|.*/([^?]+).*|\1|')
+          
           echo "
           olistiq:
             target: dev
             outputs:
               dev:
                 type: postgres
-                host: localhost
-                user: postgres
-                password: postgres
+                host: $DB_HOST
+                user: $DB_USER
+                password: $DB_PASS
                 port: 5432
-                dbname: postgres
+                dbname: $DB_NAME
                 schema: public
           " > ~/.dbt/profiles.yml
 
