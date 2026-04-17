@@ -63,13 +63,6 @@ jobs:
  
       # Phase 2.2 
 
-      - name: Install SQLFluff
-        run: pip install sqlfluff sqlfluff-templater-dbt
-
-      - name: SQLFluff Lint dbt Models
-        run: |
-          sqlfluff lint dbt/olistiq/models
-
       - name: Setup dbt profile
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -88,6 +81,13 @@ jobs:
                 dbname: postgres
                 schema: public
           " > ~/.dbt/profiles.yml
+
+      - name: Install SQLFluff
+        run: pip install sqlfluff sqlfluff-templater-dbt
+
+      - name: SQLFluff Lint dbt Models
+        run: |
+          sqlfluff lint dbt/olistiq/models
 
       - name: Run dbt Models & Tests
         env:
