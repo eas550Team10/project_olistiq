@@ -11,7 +11,7 @@ renamed as (
         shipping_limit_date,
         price,
         freight_value,
-        price + freight_value       as total_amount
+        price + freight_value as total_amount
     from source
     where order_id is not null
 )

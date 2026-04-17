@@ -13,9 +13,9 @@ renamed as (
         review_answer_timestamp,
         case
             when review_score >= 4 then 'positive'
-            when review_score = 3  then 'neutral'
+            when review_score = 3 then 'neutral'
             else 'negative'
-        end                         as sentiment
+        end as sentiment
     from source
     where review_id is not null
 )
