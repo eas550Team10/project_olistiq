@@ -23,6 +23,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+  
 
       - name: Test database connection
         env:
@@ -58,3 +59,41 @@ jobs:
         run: |
           python3 -m py_compile ingest_data.py
           echo "ingest_data.py syntax OK"
+
+ 
+      # Phase 2.2 
+
+      - name: Install SQLFluff
+        run: pip install sqlfluff sqlfluff-templater-dbt
+
+      - name: SQLFluff Lint dbt Models
+        run: |
+          sqlfluff lint dbt/olistiq/models
+
+      - name: Setup dbt profile
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          mkdir -p ~/.dbt
+          echo "
+          olistiq:
+            target: dev
+            outputs:
+              dev:
+                type: postgres
+                host: localhost
+                user: postgres
+                password: postgres
+                port: 5432
+                dbname: postgres
+                schema: public
+          " > ~/.dbt/profiles.yml
+
+      - name: Run dbt Models & Tests
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cd dbt/olistiq
+          dbt deps
+          dbt run
+          dbt test
