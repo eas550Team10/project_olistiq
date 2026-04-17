@@ -3,3 +3,5 @@ sqlalchemy
 psycopg2-binary
 python-dotenv
 kaggle
+sqlfluff
+sqlfluff-templater-dbt
