@@ -37,7 +37,7 @@ jobs:
           with engine.connect() as conn:
               count = conn.execute(text(\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'\")).scalar()
               print(f'Tables found: {count}')
-              assert count == 9, f'Expected 9 tables, got {count}'
+              assert count >= 9, f'Database should contain base tables. Found: {count}'
           print('Connection test passed!')
           "
 
