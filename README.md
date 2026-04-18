@@ -104,7 +104,7 @@ Five mart models build the Gold layer star schema. `fct_orders` is the central f
 
 The star schema diagram is in `docs/star_schema.png` and the dbt lineage graph is in `docs/dbt_lineage.png`.
 
-![Star Schema](docs/star_schema.png)
+![Star Schema](docs/star_schema.jpg)
 
 **Wrote 31 data quality tests (Step 2.1)**
 
