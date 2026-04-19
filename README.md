@@ -96,9 +96,9 @@ Phase 1 walkthrough — covers the data model, ERD, schema design, and ingestion
  
 We configured a dbt project to transform the raw Bronze tables into an analytical Star Schema using the Medallion Architecture. The pipeline has two layers — staging models that clean and rename the raw data, and mart models that join everything into a fact table and dimension tables ready for the dashboard.
  
-Seven staging models handle the Silver layer — one per source table. They rename confusing columns, cast types properly, and add calculated fields like `delivery_delay_days` and `sentiment` on reviews. All staging models are materialized as views so they stay lightweight.
+Seven staging models handle the Silver layer, one per source table. They rename confusing columns, cast types properly, and add calculated fields like `delivery_delay_days` and `sentiment` on reviews. All staging models are materialized as views so they stay lightweight.
  
-Five mart models build the Gold layer star schema. `fct_orders` is the central fact table joining orders, payments, reviews, and item aggregates into one wide table. Four dimension tables — `dim_customers`, `dim_sellers`, `dim_products`, and `dim_dates` — surround it. All mart models are materialized as tables for fast query performance.
+Five mart models build the Gold layer star schema. `fct_orders` is the central fact table joining orders, payments, reviews, and item aggregates into one wide table. Four dimension tables named `dim_customers`, `dim_sellers`, `dim_products`, and `dim_dates` surround it. All mart models are materialized as tables for fast query performance.
  
 ![Star Schema](docs/star_schema.jpg)
  
