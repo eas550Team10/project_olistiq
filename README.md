@@ -66,9 +66,6 @@ We use `NullPool` in SQLAlchemy so every connection closes the moment it's done.
 | `docs/3nf_justification.md` | Schema design write-up |
 | `.github/workflows/ci.yml` | Runs connection and syntax checks on every push |
 | `requirements.txt` | Python dependencies |
-| `dbt/olistiq/` | Full dbt project — staging and mart models |
-| `docs/star_schema.png` | Star schema diagram |
-| `docs/dbt_lineage.png` | dbt lineage graph |
 ---
 
 ## CI/CD
@@ -81,46 +78,61 @@ Every time anyone pushes to main, GitHub Actions automatically runs two checks:
 This means if someone accidentally breaks the schema or the database connection, the pipeline catches it before it merges. No manual testing needed on every push.
 
 The workflow file is at `.github/workflows/ci.yml`.
+
 ---
 
 ## Demo Video
 
 Phase 1 walkthrough — covers the data model, ERD, schema design, and ingestion pipeline running live.
 
-📹 [Watch on YouTube](https://youtu.be/REPLACE_WITH_YOUR_LINK)
+📹 [Watch on YouTube](https://youtu.be/3I7amgSjOTM?si=yt1_xPrcljXyXD-e)
 ---
 
 ## Phase 2 — Analytics Layer & dbt Transformations
-
+ 
 ### What we did
-
+ 
 **Built the dbt transformation pipeline (Step 2.1)**
-
+ 
 We configured a dbt project to transform the raw Bronze tables into an analytical Star Schema using the Medallion Architecture. The pipeline has two layers — staging models that clean and rename the raw data, and mart models that join everything into a fact table and dimension tables ready for the dashboard.
-
+ 
 Seven staging models handle the Silver layer — one per source table. They rename confusing columns, cast types properly, and add calculated fields like `delivery_delay_days` and `sentiment` on reviews. All staging models are materialized as views so they stay lightweight.
-
-Five mart models build the Gold layer star schema. `fct_orders` is the central fact table joining orders, payments, reviews and item aggregates into one wide table. Four dimension tables — `dim_customers`, `dim_sellers`, `dim_products`, and `dim_dates` — surround it. All mart models are materialized as tables for fast query performance.
-
-The star schema diagram is in `docs/star_schema.png` and the dbt lineage graph is in `docs/dbt_lineage.png`.
-
+ 
+Five mart models build the Gold layer star schema. `fct_orders` is the central fact table joining orders, payments, reviews, and item aggregates into one wide table. Four dimension tables — `dim_customers`, `dim_sellers`, `dim_products`, and `dim_dates` — surround it. All mart models are materialized as tables for fast query performance.
+ 
 ![Star Schema](docs/star_schema.jpg)
-
+ 
+The dbt lineage graph is in `docs/dbt_lineage.png`.
+ 
 **Wrote 31 data quality tests (Step 2.1)**
-
+ 
 Every primary key has `unique` and `not_null` tests. `fct_orders.customer_id` has a referential integrity test against `dim_customers`. Review scores are constrained to 1–5 and order statuses to the 8 known values. All 31 tests pass.
-
-```bash
-dbt test
-# Done. PASS=31 WARN=0 ERROR=0 SKIP=0 TOTAL=31
+ 
 ```
-
+dbt test → Done. PASS=31 WARN=0 ERROR=0 SKIP=0 TOTAL=31
+```
+ 
 **Generated the data catalog (Step 2.1)**
-
-Running `dbt docs generate && dbt docs serve` produces an interactive data catalog with the full lineage graph — showing exactly how every model flows from raw sources through staging into the Gold layer.
-
+ 
+Running `dbt docs generate && dbt docs serve` produces an interactive data catalog with the full lineage graph showing exactly how every model flows from raw sources through staging into the Gold layer.
+ 
+**Set up CI/CD with SQLFluff and dbt (Step 2.2)**
+ 
+GitHub Actions runs on every push to main. It lints all dbt SQL files with SQLFluff, then runs `dbt run` and `dbt test` automatically. If any model breaks or any test fails the pipeline catches it before it merges.
+ 
+**Advanced SQL queries and performance tuning (Step 2.3)**
+ 
+Three complex queries were written using CTEs and window functions — seller geographic reach analysis, monthly revenue trends with running totals, and delivery delay impact on review scores. The most complex query was profiled with EXPLAIN ANALYZE before and after adding composite indexes.
+ 
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| Execution Time | 780.787 ms | 315.106 ms | 59.6% faster |
+| Planning Time | 77.124 ms | 8.291 ms | 89.3% faster |
+ 
+Full report in `queries/performance_tuning_report.md`.
+ 
 ### dbt Models
-
+ 
 | Model | Type | Layer | Rows |
 |-------|------|-------|------|
 | `stg_orders` | view | Silver | 99,441 |
@@ -135,26 +147,54 @@ Running `dbt docs generate && dbt docs serve` produces an interactive data catal
 | `dim_sellers` | table | Gold | 3,095 |
 | `dim_products` | table | Gold | 32,947 |
 | `dim_dates` | table | Gold | 634 |
-
+ 
 ### Running dbt
-
+ 
 ```bash
 cd dbt/olistiq
-dbt run        # build all 12 models
-dbt test       # run all 31 tests
-dbt docs generate && dbt docs serve   # view lineage graph
+dbt run                                  # build all 12 models
+dbt test                                 # run all 31 tests
+dbt docs generate && dbt docs serve      # view lineage graph
 ```
+ 
+---
+ 
+## Files
+
+| File | What it is |
+|------|-----------|
+| `schema.sql` | Creates all 9 tables with constraints |
+| `ingest_data.py` | Cleans and loads all CSVs into Neon |
+| `security.sql` | RBAC roles |
+| `requirements.txt` | Python dependencies |
+| `dbt/olistiq/` | Full dbt project — staging and mart models |
+| `docs/erd.png` | Entity relationship diagram |
+| `docs/3nf_justification.md` | Schema design write-up |
+| `docs/star_schema.jpg` | Star schema diagram |
+| `docs/dbt_lineage.png` | dbt lineage graph |
+| `queries/` | Advanced SQL queries and performance tuning report |
+| `.github/workflows/ci.yml` | GitHub Actions CI pipeline |
 
 ---
 
+## CI/CD
+
+Every push to main automatically runs six checks:
+
+- Tests the Neon database connection and confirms all base tables exist
+- Validates `schema.sql` has proper constraints — PRIMARY KEY, FOREIGN KEY, NOT NULL, TIMESTAMPTZ
+- Checks `ingest_data.py` syntax
+- Lints all dbt SQL files with SQLFluff
+- Runs `dbt run` to build all 12 models
+- Runs `dbt test` to verify all 31 data quality checks pass
+
+The workflow is at `.github/workflows/ci.yml`.
+ 
+---
+
 ## What's Next
-
-- **Phase 2 remaining** — CI/CD with SQLFluff + dbt tests, advanced SQL queries
-- **Phase 3** — Performance tuning, EXPLAIN ANALYZE
-- **Phase 4** — Streamlit dashboard on Render
-- **Phase 3** — CI/CD with dbt tests
-- **Phase 4** — Streamlit dashboard on Render
-
+ 
+- **Phase 3** — Streamlit dashboard deployed on Render
 ---
 
 ## Running It
@@ -175,6 +215,13 @@ DATABASE_URL=postgresql://...
 Run the schema in Neon SQL Editor, then:
 ```bash
 python ingest_data.py --data-dir ./data
+```
+
+Run the dbt transformations:
+```bash
+cd dbt/olistiq
+dbt run
+dbt test
 ```
 
 ---
