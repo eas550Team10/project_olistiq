@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: olistiq-dashboard
+    runtime: python
+    buildCommand: pip install -r streamlit_app/requirements.txt
+    startCommand: streamlit run streamlit_app/app.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: DATABASE_URL
+        sync: false
