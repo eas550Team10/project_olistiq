@@ -1,14 +1,41 @@
 # OlistIQ
 
-OlistIQ is a data engineering pipeline built on the Brazilian E-Commerce dataset by Olist. The goal was to take 9 messy CSV files with Portuguese category names, missing timestamps, incomplete orders and turn them into a clean cloud database with a dashboard on top that answers real business questions.
-
+OlistIQ is a full end-to-end data engineering pipeline built on the Brazilian E-Commerce dataset by Olist. The goal was to take 9 messy CSV files — Portuguese category names, missing timestamps, incomplete orders and turn them into a clean cloud database, an analytics layer, and a live interactive dashboard that answers real business questions.
+ 
 **Course:** EAS 550 — Data Models & Query Languages · Spring 2026 · University at Buffalo
+ 
+**Live Dashboard:** [https://olistiq-dashboard.onrender.com](https://olistiq-dashboard.onrender.com)
 
 ---
-
+ 
 ## The Dataset
-
-Real transaction data from [Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce), a Brazilian marketplace. About 100,000 orders from 2016–2018 across 9 files like orders, customers, sellers, products, payments, reviews, and geolocation.
+ 
+Real transaction data from [Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce), a Brazilian marketplace. About 100,000 orders from 2016–2018 across 9 CSV files — orders, customers, sellers, products, payments, reviews, and geolocation.
+ 
+---
+ 
+## Architecture
+ 
+The project was built in three phases, each building on the last — from raw data to a live dashboard.
+ 
+```
+Raw CSVs (9 files, 100k+ rows)
+        │
+        ▼
+ingest_data.py (Pandas + SQLAlchemy + NullPool)
+        │
+        ▼
+Neon PostgreSQL ── Bronze Layer (9 normalized tables, 3NF schema)
+        │
+        ▼
+dbt ── Silver Layer (7 staging views — cleaned and renamed)
+        │
+        ▼
+dbt ── Gold Layer (5 mart tables — Star Schema)
+        │
+        ▼
+Streamlit Dashboard ── Deployed on Render (live public URL)
+```
 
 ---
 
@@ -158,22 +185,36 @@ dbt docs generate && dbt docs serve      # view lineage graph
 ```
  
 ---
- 
-## Files
 
-| File | What it is |
-|------|-----------|
-| `schema.sql` | Creates all 9 tables with constraints |
-| `ingest_data.py` | Cleans and loads all CSVs into Neon |
-| `security.sql` | RBAC roles |
-| `requirements.txt` | Python dependencies |
-| `dbt/olistiq/` | Full dbt project — staging and mart models |
-| `docs/erd.png` | Entity relationship diagram |
-| `docs/3nf_justification.md` | Schema design write-up |
-| `docs/star_schema.jpg` | Star schema diagram |
-| `docs/dbt_lineage.png` | dbt lineage graph |
-| `queries/` | Advanced SQL queries and performance tuning report |
-| `.github/workflows/ci.yml` | GitHub Actions CI pipeline |
+## Phase 3 — Streamlit Dashboard
+
+### What we did (Step 3.1)
+
+Phase 3 is where everything we built comes together in a way anyone can actually use. We took the star schema from Phase 2 and built a Streamlit dashboard on top of it — three pages covering business overview, seller performance, and delivery analysis, all pulling live data from Neon PostgreSQL. The app is deployed on Render so it's publicly accessible, and it automatically redeploys whenever we push to GitHub.
+
+**Overview** — five KPI cards across the top show total orders, revenue, average order value, average review score, and on-time delivery rate. Below that is a monthly revenue trend area chart with an interactive date range slider. An order status donut and a payment methods bar chart round out the page.
+
+**Sellers** — top 10 Brazilian states by revenue shown as a horizontal bar chart, color coded by average review score. A summary table below shows the full numbers.
+
+**Delivery & Reviews** — review score distribution from 1 to 5, on-time vs late delivery breakdown, and a bar chart showing how delivery timing affects review scores. A dynamic insight at the bottom calculates the actual score difference between on-time and late deliveries for the selected state.
+
+The state filter dropdown in the sidebar and the date range slider on the revenue chart are the two interactive widgets.
+
+![Overview](docs/dashboard_overview.jpg)
+
+![Sellers](docs/dashboard_sellers.jpg)
+
+![Delivery](docs/dashboard_delivery.jpg)
+
+### Secure database access (Step 3.2)
+
+The app connects to Neon using SQLAlchemy with `NullPool` — connections close immediately after each query. `DATABASE_URL` is loaded from an environment variable only, never hardcoded. All queries run live against the database. `@st.cache_data` is on every query function so the app does not hit the database on every interaction — cache refreshes every 5 minutes.
+
+### Deployment (Step 3.3)
+
+Deployed on Render as a web service connected to the GitHub repo. Every push to main triggers an automatic redeploy. `DATABASE_URL` is set as an environment variable in the Render dashboard — no credentials anywhere in the code.
+
+**Live app:** [https://olistiq-dashboard.onrender.com](https://olistiq-dashboard.onrender.com)
 
 ---
 
@@ -190,11 +231,53 @@ Every push to main automatically runs six checks:
 
 The workflow is at `.github/workflows/ci.yml`.
  
+
+## Key Takeaways
+
+Working through this project end to end gave us a clear picture of what a real data engineering pipeline looks like in practice.
+
+The biggest lesson from Phase 1 was that schema design decisions have consequences that show up much later. Putting geolocation in its own table, separating category translations, using a bridge table for order items — these felt like extra work at the time but made the dbt models and dashboard queries much simpler downstream.
+
+Phase 2 showed us why dbt exists. Writing modular SQL SELECT statements that build on each other, with tests that run automatically on every push, is genuinely better than maintaining one large transformation script. The lineage graph made it easy to trace where any piece of data came from at any point.
+
+The performance tuning work was the most concrete learning. Seeing a 59.6% improvement in execution time from two well-placed indexes made the theory real. Sequential scans on large tables are expensive, and indexes work best when they match exactly what the queries filter and join on.
+
+Phase 3 tied everything together. Because the star schema was already clean and structured, the dashboard queries were simple — mostly just `fct_orders` with a join or two. Building the dashboard last made sense because all the hard data work was already done.
+
 ---
 
-## What's Next
+## Demo Videos
+
+Phase 1 — Data model, ERD, schema design, and ingestion pipeline running live.
+
+📹 [Watch Phase 1 on YouTube](https://youtu.be/3I7amgSjOTM?si=yt1_xPrcljXyXD-e)
+
+Phase 3 — End-to-end walkthrough of the live Streamlit dashboard on Render.
+
+📹 [Watch Phase 3 Demo on YouTube](https://youtu.be/6TPEghF2vNk)
+
+---
+
+## Files
  
-- **Phase 3** — Streamlit dashboard deployed on Render
+| File | What it is |
+|------|-----------|
+| `schema.sql` | Creates all 9 tables with constraints |
+| `ingest_data.py` | Cleans and loads all CSVs into Neon |
+| `security.sql` | RBAC roles |
+| `requirements.txt` | Python dependencies |
+| `render.yaml` | Render deployment config |
+| `dbt/olistiq/` | Full dbt project — staging and mart models |
+| `streamlit_app/app.py` | Streamlit dashboard |
+| `streamlit_app/requirements.txt` | Dashboard dependencies |
+| `queries/` | Advanced SQL queries and performance tuning report |
+| `docs/erd.png` | Entity relationship diagram |
+| `docs/3nf_justification.md` | Schema design write-up |
+| `docs/star_schema.jpg` | Star schema diagram |
+| `docs/dbt_lineage.png` | dbt lineage graph |
+| `docs/query_performance.md` | EXPLAIN ANALYZE report |
+| `.github/workflows/ci.yml` | GitHub Actions CI pipeline |
+ 
 ---
 
 ## Running It
@@ -222,6 +305,10 @@ Run the dbt transformations:
 cd dbt/olistiq
 dbt run
 dbt test
+```
+Run the dashboard locally:
+```bash
+streamlit run streamlit_app/app.py
 ```
 
 ---
